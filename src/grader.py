@@ -180,7 +180,8 @@ class Test_2a(GradedTestCase):
                     - initial_agent_parameters.get(k).data
                 )
             )
-        self.assertTrue(update_magnitude > 0 and update_magnitude < 1)
+        self.assertGreater(update_magnitude, 0, msg="Possible issue with the ACAgent.bc function--policy parameter update magnitude was not as big as expected.")
+        self.assertLess(update_magnitude, 1, msg="Possible issue with the ACAgent.bc function--policy parameter update magnitude was bigger than expected.")
 
     ### BEGIN_HIDE ###
     ### END_HIDE ###
@@ -282,7 +283,8 @@ class Test_2b(GradedTestCase):
                     - initial_agent_parameters.get(k).data
                 )
             )
-        self.assertTrue(update_magnitude > 0 and update_magnitude < 1)
+        self.assertGreater(update_magnitude, 0, msg="Possible issue with the ACAgent.update_critic function--critic_target parameter update magnitude was not as big as expected.")
+        self.assertLess(update_magnitude, 1, msg="Possible issue with the ACAgent.update_critic function--critic_target parameter update magnitude was bigger than expected.")
 
     ### BEGIN_HIDE ###
     ### END_HIDE ###
@@ -310,7 +312,8 @@ class Test_2b(GradedTestCase):
                     - initial_agent_parameters.get(k).data
                 )
             )
-        self.assertTrue(update_magnitude > 0 and update_magnitude < 1)
+        self.assertGreater(update_magnitude, 0, msg="Possible issue with the ACAgent.update_actor function--actor parameter update magnitude was not as big as expected.")
+        self.assertLess(update_magnitude, 1, msg="Possible issue with the ACAgent.update_actor function--actor parameter update magnitude was bigger than expected.")
 
     ### BEGIN_HIDE ###
     ### END_HIDE ###
