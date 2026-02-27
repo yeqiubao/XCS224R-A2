@@ -61,6 +61,18 @@ The hand remains limp or moves away from the cube because all task-related rewar
 
 #### Part 2cii: Plot Submission [3 points (Written)]
 
+**Plot: eval/episode_success for num_critics=2, utd=1**
+
+To view the plot:
+1. Run TensorBoard: `tensorboard --logdir=src/logdir/run_204837_agent.num_critics=2,utd=1/tb`
+2. Navigate to the "eval/episode_success" scalar in TensorBoard
+3. Take a screenshot or export the plot
+
+**Results:**
+- 90% success rate reached at step: _____
+- Final success rate: _____
+- Total training steps: _____
+
 ---
 
 #### Part 2ciii: Extended Training [6 points (Coding)]
@@ -87,3 +99,54 @@ The hand remains limp or moves away from the cube because all task-related rewar
 - [ ] Part 2cii
 - [ ] Part 2ciii
 - [ ] Part 2civ
+
+
+## How Actor-Critic Works: A Step-by-Step Explanation
+
+### 1. The BC Foundation (Seeding the Success)
+
+Because you start with Behavior Cloning (BC), the robot isn't moving randomly; it follows the 20 expert demonstrations.
+
+The Actor is trained to minimize the negative log-likelihood:
+
+$$\mathcal{L} = -\log \pi_{\theta}(a_{t}|o_{t})$$
+
+This ensures the robot actually reaches the final state where it receives a reward of 1.0. Without this expert data, the Critic would only see 0.0 rewards for millions of steps, and the math would never start working.
+
+### 2. The Critic's Evolution (The "Breadcrumb" Trail)
+
+Once the robot starts hitting that 1.0 reward (thanks to BC), your `update_critic` function uses the Bellman Equation to spread that value:
+
+$$y = r_{t} + \gamma \min(\bar{Q}_{1}, \bar{Q}_{2})$$
+
+Here is how the Critic "evolves" step-by-step:
+
+- **The Goal (Nail Hammered):** The robot gets a reward $r_t = 1.0$. The Critic learns that this state is a 1.0.
+
+- **One Step Before (Hovering over nail):** The reward $r_t$ is 0.0, but the next state has a Q-value of 1.0. The Propagation: Using the discount factor ($\gamma \approx 0.99$), the Critic calculates the value of this step as $0.0 + 0.99(1.0) = \mathbf{0.99}$.
+
+- **Five Steps Before (Reaching for hammer):** This logic continues backward. $0.99$ becomes $0.98$, then $0.97$, and so on.
+
+### 3. The Result: A "Slope" of Values
+
+The Critic evolves from a network that knows nothing into a Value Gradient. It creates a smooth path of increasing numbers that lead to the reward:
+
+| Stage of Task | Reward ($r_t$) | Critic's Score ($Q$) |
+|---------------|----------------|---------------------|
+| Hand at rest | 0.0 | 0.15 (Long way to go) |
+| Grasping the hammer | 0.0 | 0.50 (Halfway there) |
+| Hammer near the nail | 0.0 | 0.95 (Almost done) |
+| Success (Hit nail) | 1.0 | 1.00 (Perfect Score) |
+
+### 4. The Actor "Climbs" the Slope
+
+Now, the Actor no longer needs the expert demonstrations. In `update_actor`, it samples an action and "asks" the Critic for the score.
+
+The Actor's goal is to maximize the Q-value:
+
+$$\mathcal{L}_{\pi_{\theta}} = -\frac{1}{N}\sum Q_{i}$$
+
+- If the Actor moves the hand away from the hammer, the Critic gives a lower score (e.g., 0.10).
+- If the Actor moves toward the hammer, the Critic gives a higher score (e.g., 0.20).
+
+The Actor uses these gradients to "climb" the slope until it consistently reaches the 1.0 reward.

@@ -194,6 +194,7 @@ class Workspace:
 
                 if self.global_step % self.cfg.bc_freq == 0:
                     bc_metrics = self.agent.bc(next(self.demo_iter))
+                    self.logger.log_metrics(bc_metrics, self.global_frame, ty='pretrain')
 
                 self.logger.log_metrics(actor_metrics, self.global_frame, ty='actor')
 

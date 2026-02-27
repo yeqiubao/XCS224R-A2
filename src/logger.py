@@ -178,12 +178,26 @@ class Logger(object):
             self._train_mg.dump(step, 'train')
         if ty is None or ty == 'eval':
             self._eval_mg.dump(step, 'eval')
+        # Suppress console output for critic, actor, and pretrain metrics
+        # (they are still logged to TensorBoard and CSV files, just not printed to console)
         if ty == 'critic':
-            self._critic_mg.dump(step, 'critic')
+            if len(self._critic_mg._meters) > 0:
+                data = self._critic_mg._prime_meters()
+                data['frame'] = step
+                self._critic_mg._dump_to_csv(data)
+                self._critic_mg._meters.clear()
         if ty == 'actor':
-            self._actor_mg.dump(step, 'actor')
+            if len(self._actor_mg._meters) > 0:
+                data = self._actor_mg._prime_meters()
+                data['frame'] = step
+                self._actor_mg._dump_to_csv(data)
+                self._actor_mg._meters.clear()
         if ty == 'pretrain':
-            self._pretrain_mg.dump(step, 'pretrain')
+            if len(self._pretrain_mg._meters) > 0:
+                data = self._pretrain_mg._prime_meters()
+                data['frame'] = step
+                self._pretrain_mg._dump_to_csv(data)
+                self._pretrain_mg._meters.clear()
 
     def log_and_dump_ctx(self, step, ty):
         return LogAndDumpCtx(self, step, ty)
