@@ -144,9 +144,8 @@ class ACAgent:
         with torch.no_grad():
             # Step 1: Get the policy distribution and sample actions for next states
             next_dist = self.actor(next_obs)
-            next_action = next_dist.sample(clip=self.stddev_clip)
+            next_action = next_dist.sample()
         
-        with torch.no_grad():
             # Step 2: Compute Bellman targets
             # y = r_t + γ * min(Q_target_i(o_{t+1}, a'_{t+1}), Q_target_j(o_{t+1}, a'_{t+1}))
             # randomly sample two target critics to compute the minimum (reduces overestimation)
@@ -159,9 +158,7 @@ class ACAgent:
             target_q_min = torch.min(target_qs[idx1], target_qs[idx2])  # [batch, 1]
             
             # Compute Bellman targets: y = r + γ * min(Q_target)
-            # discount is γ, reward is r_t
-            # Squeeze to match dimensions: target_q_min is [batch, 1], reward is [batch,]
-            y = reward.unsqueeze(-1) + discount.unsqueeze(-1) * target_q_min  # [batch, 1]
+            y = reward + discount * target_q_min  # [batch, 1]
         
         # Step 3: Compute the loss
         # L = Σ_i (Q_i(o_t, a_t) - sg(y))^2
@@ -172,7 +169,6 @@ class ACAgent:
         # Compute MSE loss for each critic and sum them
         loss = 0
         for q in qs:
-            # y is already detached (computed with no_grad), so it acts as stop gradient
             loss += F.mse_loss(q, y)
         
         # Step 4: Take gradient step with respect to critic parameters
@@ -182,12 +178,14 @@ class ACAgent:
         
         # Step 5: Update target critic parameters using exponential moving average
         # Q_target = (1 - τ) * Q_target + τ * Q
-        utils.soft_update_params(self.critic, self.critic_target, self.critic_target_tau)
+                # Update the target critic parameters
+        for critic, target_critic in zip(
+            self.critic.critics, self.critic_target.critics
+        ):
+            utils.soft_update_params(critic, target_critic, self.critic_target_tau)
         
         # Log metrics for debugging
         metrics['critic_loss'] = loss.item()
-        metrics['target_q_mean'] = target_q_min.mean().item()
-        metrics['q_mean'] = torch.stack(qs).mean().item()
         # *** END CODE HERE ***
 
         #####################
@@ -229,8 +227,7 @@ class ACAgent:
         # which is essential for policy gradient methods
         # sample() would break the gradient flow and prevent proper policy updates
         dist = self.actor(obs)
-        action = dist.rsample()
-        action = torch.clamp(action, -1, 1) # Ensure actions are in valid range
+        action = dist.sample()
         
         # Get Q-values from all critics for the sampled actions
         qs = self.critic(obs, action)  # List of [batch, 1] tensors
